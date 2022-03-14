@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "HandyCommandy.Sample": {
+      "commandName": "Project",
+      "commandLineArgs": "--episode 5 --keep"
+    }
+  }
+}
