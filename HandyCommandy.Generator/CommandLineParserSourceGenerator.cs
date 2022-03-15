@@ -32,6 +32,7 @@ namespace HandyCommandy.Generator
 
                 optionExpression = ((MemberAccessExpressionSyntax)s.Expression).Expression;
             }
+            options.Reverse();
             return options;
         }
 
