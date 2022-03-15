@@ -10,6 +10,13 @@ namespace HandyCommandy.Generator
     {
         public void Execute(GeneratorExecutionContext context)
         {
+            var options = GetArgBuilderOptions(context);
+            var source = GenerateCode(options);
+            context.AddSource($"ArgBuilder.g.cs", source);
+        }
+
+        private static List<Option> GetArgBuilderOptions(GeneratorExecutionContext context)
+        {
             var mainMethod = context.Compilation.GetEntryPoint(context.CancellationToken);
 
             var body = mainMethod.DeclaringSyntaxReferences.Single();
@@ -25,7 +32,12 @@ namespace HandyCommandy.Generator
 
                 optionExpression = ((MemberAccessExpressionSyntax)s.Expression).Expression;
             }
-            string source = $@"// Auto-generated code
+            return options;
+        }
+
+        private static string GenerateCode(List<Option> options)
+        {
+            return $@"// Auto-generated code
 #nullable enable
 
 using System;
@@ -65,7 +77,7 @@ public class Args
 {options
     .SelectMany(v =>
     {
-        if (v.TypeName == "string")
+        if (v is Option.StringOption)
         {
             return new[]
             {
@@ -77,14 +89,14 @@ public class Args
                 "}"
             };
         }
-        else if (v.TypeName == "string?")
+        else if (v is Option.OptionalStringOption)
         {
             return new[]
             {
                 $@"var {v.Name.FirstToLower()} = args.SkipWhile(v => !v.Equals(""--{v.Name}"", StringComparison.InvariantCultureIgnoreCase)).Skip(1).FirstOrDefault();"
             };
         }
-        else if (v.TypeName == "bool")
+        else if (v is Option.BoolOption)
         {
             return new[]
             {
@@ -93,7 +105,7 @@ public class Args
         }
         else
         {
-            return new[] { "throw new NotSupportedException();" };
+            return new[] { "throw new NotImplementedException();" };
         }
     })
     .Select(v => $"        {v}")
@@ -104,76 +116,10 @@ public class Args
     }}
 }}
 ";
-            var typeName = mainMethod.ContainingType.Name;
-
-            context.AddSource($"{typeName}.g.cs", source);
         }
 
         public void Initialize(GeneratorInitializationContext context)
         {
-        }
-    }
-
-    class Option
-    {
-        public Option(string name, string typeName, string description)
-        {
-            Name = name;
-            TypeName = typeName;
-            Description = description;
-        }
-
-        public string Name { get; }
-        public string TypeName { get; }
-        public string Description { get; }
-
-        public static Option FromKey(string key, string description)
-        {
-            var indexOfFirstSpace = key.IndexOf(' ');
-            if (indexOfFirstSpace == -1)
-            {
-                var name = key.TrimStart('-');
-                return new Option(name, "bool", description);
-            }
-            else
-            {
-                var name = key.Substring(0, indexOfFirstSpace).TrimStart('-');
-                var value = key.Substring(indexOfFirstSpace + 1);
-                if (value.StartsWith("["))
-                {
-                    return new Option(name, "string?", description);
-                }
-                else
-                {
-                    return new Option(name, "string", description);
-                }
-            }
-        }
-    }
-
-    public static class StringExtensions
-    {
-        public static string FirstToUpper(this string text)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return text;
-            }
-            return text.Substring(0, 1).ToUpper() + text.Substring(1);
-        }
-
-        public static string FirstToLower(this string text)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return text;
-            }
-            return text.Substring(0, 1).ToLower() + text.Substring(1);
-        }
-
-        public static string Join(this IEnumerable<string> values, string separator)
-        {
-            return string.Join(separator, values);
         }
     }
 }
